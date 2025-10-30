@@ -1,0 +1,70 @@
+# Program 8
+# # Use text mining techniques to analyse a collection of news articles. Identify the most
+# frequent terms and perform topic modelling using Latent Dirichlet Allocation (LDA) to
+# find hidden topics within the articles.
+
+!pip install gensim pyLDAvis 
+
+# Step 1: Import Libraries
+import os
+import matplotlib.pyplot as plt
+from sklearn.datasets import fetch_20newsgroups
+from nltk.corpus import stopwords
+from collections import Counter
+from gensim import corpora
+from gensim.models import LdaMulticore
+from gensim.utils import simple_preprocess
+import pyLDAvis.gensim_models as gensimvis
+import pyLDAvis
+import nltk
+
+# Step 2: Download Stopwords
+nltk.download('stopwords')
+
+# Step 3: Load Dataset (subset for faster testing)
+newsgroups = fetch_20newsgroups(subset='train', remove=('headers', 'footers', 'quotes'))
+texts = newsgroups.data[:2000] # limit docs for faster run
+
+# Step 4: Preprocessing Function (fast)
+def preprocess(text):
+    return [word for word in simple_preprocess(text) if word not in
+stopwords.words('english')]
+
+# Step 5: Apply Preprocessing
+processed_texts = [preprocess(text) for text in texts]
+
+# Step 6: Frequent Terms Plot
+all_tokens = [token for sublist in processed_texts for token in sublist]
+freq_dist = Counter(all_tokens)
+top_terms = freq_dist.most_common(20)
+terms, freqs = zip(*top_terms)
+plt.figure(figsize=(10, 6))
+plt.barh(terms[::-1], freqs[::-1])
+plt.title("Top 20 Most Frequent Terms (20 Newsgroups)")
+plt.xlabel("Frequency")
+plt.show()
+
+# Step 7: Prepare Data for LDA
+dictionary = corpora.Dictionary(processed_texts)
+dictionary.filter_extremes(no_below=5, no_above=0.5) # shrink vocab for speed
+corpus = [dictionary.doc2bow(text) for text in processed_texts]
+
+# Step 8: Train LDA Model (multicore, no logging)
+lda_model = LdaMulticore(
+corpus=corpus,
+id2word=dictionary,
+num_topics=5,
+passes=5, # reduced passes for faster testing
+workers=min(4, os.cpu_count()), # auto-detect CPU cores
+random_state=42
+)
+
+# Step 9: Print Topics
+print("\nIdentified Topics:")
+for i, topic in lda_model.print_topics(num_words=5):
+    print(f"Topic {i+1}: {topic}")
+
+# Step 10: Visualize Topics (in Jupyter/Colab)
+pyLDAvis.enable_notebook()
+vis = gensimvis.prepare(lda_model, corpus, dictionary)
+pyLDAvis.display(vis)

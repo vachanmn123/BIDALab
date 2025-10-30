@@ -1,0 +1,78 @@
+# Program 7
+# # Use a dataset of customer product reviews (e.g., Amazon reviews) to classify the sentiment
+# of each review as positive, negative, or neutral using a pre-trained machine learning
+# model (e.g., Naïve Bayes). Evaluate the accuracy of your sentiment classifier.
+# Dataset Link: https://www.kaggle.com/datasets/snap/amazon-fine-food-reviews
+
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+# Step 1: Load the dataset
+df = pd.read_csv(r"<Path>")
+df = df[["Text", "Score"]].dropna()
+
+
+# Step 2: Map Score to Sentiment (3-class)
+def map_sentiment(score):
+    if score <= 2:
+        return -1  # Negative
+    elif score == 3:
+        return 0  # Neutral
+    else:
+        return 1  # Positive
+
+
+df["Sentiment"] = df["Score"].apply(map_sentiment)
+# Step 3: Limit sample size to 20,000 (unbalanced)
+df_sampled = df.sample(n=20000, random_state=42)
+# Step 4: Vectorize text using CountVectorizer
+vectorizer = CountVectorizer(stop_words="english", max_features=5000)
+X = vectorizer.fit_transform(df_sampled["Text"])
+y = df_sampled["Sentiment"]
+# Step 5: Train/test split
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.3, random_state=42
+)
+# Step 6: Train Naive Bayes classifier
+model = MultinomialNB()
+model.fit(X_train, y_train)
+# Step 7: Predict
+y_pred = model.predict(X_test)
+# Step 8: Evaluation
+accuracy = accuracy_score(y_test, y_pred)
+print(f"Accuracy: {accuracy * 100:.2f}%\n")
+print("Classification Report:")
+print(
+    classification_report(
+        y_test,
+        y_pred,
+        zero_division=1,
+        target_names=["Negative", "Neutral", "Positive"],
+    )
+)
+print("Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred))
+# Step 9: Cross-validation
+cross_val_accuracy = cross_val_score(model, X, y, cv=5, scoring="accuracy")
+print(f"\nCross-validation accuracy: {cross_val_accuracy.mean() * 100:.2f}%")
+sentiment_counts = df_sampled["Sentiment"].value_counts()
+sentiment_labels = [
+    "Positive" if i == 1 else "Neutral" if i == 0 else "Negative"
+    for i in sentiment_counts.index
+]
+# Plot a Pie Chart – Sentiment Proportion
+plt.figure(figsize=(6, 6))
+plt.pie(
+    sentiment_counts,
+    labels=sentiment_labels,
+    autopct="%1.1f%%",
+    colors=["green", "red", "orange"],
+    startangle=140,
+)
+plt.title("Sentiment Proportion (Unbalanced)")
+plt.tight_layout()
+plt.show()

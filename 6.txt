@@ -1,0 +1,28 @@
+# Program 6
+# Identify frequent item sets using the Apriori algorithm for a given transaction data set
+# Dataset Link: https://www.kaggle.com/datasets/prasad22/retail-transactions-dataset
+
+!pip install mlxtend
+
+import pandas as pd
+from mlxtend.preprocessing import TransactionEncoder
+from mlxtend.frequent_patterns import fpgrowth
+
+
+# Step 2: Load the dataset
+df = pd.read_csv(r"<Path> ")
+# Step 3: Clean the 'Product' column
+df['Product'] = df['Product'].astype(str).str.strip().str.lower()
+# Step 4: Optional sampling to reduce runtime
+df = df.sample(n=20000, random_state=1) # Increase for better results if system allows
+# Step 5: Group products by Transaction_ID
+transactions = df.groupby('Transaction_ID')['Product'].apply(list)
+# Step 6: One-hot encode the transaction data
+te = TransactionEncoder()
+te_ary = te.fit(transactions).transform(transactions)
+df_encoded = pd.DataFrame(te_ary, columns=te.columns_)
+# Step 7: Apply FP-Growth to find frequent itemsets
+frequent_itemsets = fpgrowth(df_encoded, min_support=0.0005, use_colnames=True)
+# Step 8: Display top frequent itemsets
+print("Frequent Itemsets:")
+print(frequent_itemsets.sort_values(by='support', ascending=False).head(10))
